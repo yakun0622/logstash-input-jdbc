@@ -199,6 +199,11 @@ module LogStash module Inputs class Jdbc < LogStash::Inputs::Base
   # this will only convert column0 that has ISO-8859-1 as an original encoding.
   config :columns_charset, :validate => :hash, :default => {}
 
+  # 开启子查询分页
+  config :subquery_paging_enabled, :validate => :boolean, :default => false
+  # 总数sql，结果集列名为sum。for example `select count(*) as sum from goods`
+  config :sum_statement, :validate => :string
+
   public
 
   def register

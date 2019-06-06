@@ -98,6 +98,12 @@ module LogStash  module PluginMixins module Jdbc
       config :connection_retry_attempts, :validate => :number, :default => 1
       # Number of seconds to sleep between connection attempts
       config :connection_retry_attempts_wait_time, :validate => :number, :default => 0.5
+
+      # 开启子查询分页
+      config :subquery_paging_enabled, :validate => :boolean, :default => false
+      # 总数sql，结果集列名为sum。for example `select count(*) as sum from goods`
+      config :sum_statement, :validate => :string
+
     end
 
     private
@@ -247,7 +253,21 @@ module LogStash  module PluginMixins module Jdbc
 # @yieldparam row [Hash{Symbol=>Object}]
     private
     def perform_query(query)
-      if @jdbc_paging_enabled
+      #subquery paging
+      if @subquery_paging_enabled
+        @logger.info("################### subquery paging optimization ################")
+        data_sum = @database[@sum_statement].get(:sum)
+        @logger.info("data_sum=#{data_sum}")
+        data_offset = 0
+        while data_offset < data_sum do
+          sub_page_query = @database[@statement, symbolized_params({"data_offset" => data_offset, "jdbc_page_size" => @jdbc_page_size})]
+          @logger.info("sub_page_query=>#{sub_page_query}")
+          sub_page_query.each do |row|
+            yield row
+          end
+          data_offset += @jdbc_page_size
+        end
+      elsif @jdbc_paging_enabled
         query.each_page(@jdbc_page_size) do |paged_dataset|
           paged_dataset.each do |row|
             yield row
